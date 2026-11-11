@@ -1,79 +1,132 @@
-# CameraReset 📸⚡
+<h1 align="center">CameraReset</h1>
 
-> **Ứng dụng Android chạy ngầm (UI-less / Headless) giúp chủ động giải phóng hook camera bị kẹt, phục hồi camera server và tự động truy vết, ghi log các tiến trình gây lỗi trực tiếp từ Bảng điều khiển nhanh (Quick Panel).**
+<p align="center">
+  A lightweight, headless Android system utility designed to evict hung camera sessions, release leaked HAL locks, and trace offending processes via Quick Settings.
+</p>
 
----
-
-## 🎯 Bối cảnh & Vấn đề giải quyết
-
-Trên nhiều thiết bị Android (đặc biệt là Samsung Galaxy One UI), thỉnh thoảng camera gặp lỗi **"Không thể kết nối vào máy ảnh" (Camera Failed / Cannot connect to camera)** ở cả app chụp ảnh gốc, trình quét mã QR lẫn các ứng dụng ngân hàng:
-* **Nguyên nhân:** Một số app (app ngân hàng, quét mã, app nền...) khi mở camera gặp sự cố hoặc thoát ngầm nhưng không đóng camera session đúng cách, khiến Binder token bị giữ lại trong `cameraserver` hoặc driver HAL camera (như Qualcomm CamX HAL) bị treo cứng.
-* **Hiện tượng đặc biệt:** Khi thực hiện một cuộc gọi video (Messenger, Zalo), camera lại hoạt động bình thường, và sau cuộc gọi thì các app khác cũng dùng lại được camera! Đó là vì Android ưu tiên quyền camera cho cuộc gọi thoại/video ở mức cao nhất, tự động kích hoạt cơ chế **Client Eviction** để trục xuất các session cấp thấp đang chiếm giữ trái phép.
-* **Giải pháp thông thường:** Phải khởi động lại máy hoặc cắm cáp vào máy tính chạy lệnh ADB.
-
-👉 **CameraReset** ra đời để giải quyết triệt để vấn đề này ngay trên điện thoại **chỉ với 1 chạm**, không cần máy tính và không cần khởi động lại máy!
+<p align="center">
+  <a href="https://github.com/WhyICantCreateMyName/CameraServer-reset-for-android/releases/latest"><img src="https://img.shields.io/badge/version-1.0.0-blue" alt="Version"></a>
+  <a href="#compatibility"><img src="https://img.shields.io/badge/Platform-Android%208.0%20--%2015%2B-green?logo=android" alt="Platform"></a>
+  <img src="https://img.shields.io/badge/Interface-Headless%20%2F%20TileService-purple" alt="Interface">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue" alt="License"></a>
+</p>
 
 ---
 
-## 🚀 Tính năng nổi bật
+## Overview
 
-* 🧩 **100% UI-less (Headless):** Không có giao diện rườm rà, không tạo icon rác trên màn hình chính hay khay ứng dụng (App Drawer).
-* ⚡ **Nút bấm 1 chạm trên Quick Panel:** Đăng ký chuẩn `TileService` của Android gốc. Khi camera lỗi, chỉ cần vuốt thanh trạng thái xuống bấm nút **"Reset Camera"**.
-* 🔍 **Truy vết & Bắt lỗi ứng dụng rò rỉ:** Tự động trích xuất `dumpsys media.camera` để tìm danh sách tiến trình đang giữ camera (`Active Camera Clients`) và nhật ký 20 sự kiện kết nối gần nhất.
-* 🛑 **Buộc dừng (Force Stop) thủ phạm:** Nếu phát hiện app cụ thể đang chiếm giữ camera, app sẽ lập tức đóng tiến trình đó để giải phóng Binder lock.
-* 🔄 **Xung phần cứng Video-Call (Hardware Eviction Pulse):** Mô phỏng chu kỳ mở/đóng camera ưu tiên cao tương tự cơ chế cuộc gọi video để buộc HAL driver reset về trạng thái sạch.
-* 📝 **Lưu nhật ký trực tiếp vào bộ nhớ trong:** Ghi log chẩn đoán vào thư mục `/sdcard/CameraLogs/` để người dùng tiện theo dõi:
-  * `history.txt`: Tóm tắt nhanh từng lần reset (thời gian, app bị bắt lỗi, kết quả).
-  * `camera_reset_YYYYMMDD_HHmmss.log`: Toàn bộ dump chi tiết của `cameraserver`.
-* 🌐 **Tương thích toàn diện:** Viết trên nền tảng Android AOSP gốc, hoạt động trên mọi máy Android (Samsung One UI, Google Pixel, Xiaomi HyperOS, Oppo ColorOS, Vivo OriginOS, v.v.).
+On several Android OEM skins—particularly Samsung One UI running on modern Qualcomm SoCs—the camera subsystem periodically freezes, displaying errors such as **"Cannot connect to camera"** or `CAMERA_IN_USE` across stock camera applications, third-party QR scanners, and banking verification modules.
 
----
+### Underlying Mechanism
+* **Leaked Binder Tokens:** Applications interacting with the Android Camera2 API (`CameraManager`) that terminate abnormally or fail to invoke `CameraDevice.close()` often leave lingering Binder references inside `cameraserver`.
+* **HAL Deadlock:** Under specific timing conditions, driver implementations (such as Qualcomm's CamX HAL `vendor.samsung.hardware.camera.provider`) fail stream allocation and abort, leaving hardware pipelines unresponsive to lower-priority clients.
+* **Eviction Behavior:** AOSP `CameraService` implements client priority scheduling. Initiating a video call (e.g., Messenger or Zalo) forces higher-priority client binding, triggering internal `connectHelper` eviction logic that sweeps stale tokens and reinitializes the HAL stream.
 
-## 📥 Cài đặt
-
-1. Vào mục [Releases](https://github.com/WhyICantCreateMyName/CameraServer-reset-for-android/releases) để tải file APK phiên bản mới nhất: **`CameraReset.apk`**.
-2. Cài đặt file APK vào điện thoại.
-3. *(Khuyên dùng)* Cài đặt [Shizuku](https://shizuku.rikka.app/) và cấp quyền cho CameraReset trong mục **Authorized apps (Ứng dụng được ủy quyền)** để app có đầy đủ quyền đọc log `dumpsys` và `force-stop` app lỗi.
+**CameraReset** automates this eviction process directly on the device with a single tap, eliminating the need for USB-tethered ADB terminal commands or device reboots.
 
 ---
 
-## 🛠️ Hướng dẫn sử dụng
+## Architecture & Features
 
-### 1. Đưa nút ra Bảng điều khiển nhanh (Quick Panel)
-* **Samsung One UI:** Vuốt 2 lần từ đỉnh màn hình xuống > Bấm biểu tượng cây bút (Sửa) > Chọn **Sửa** (Bảng điều khiển nhanh) > Tìm nút **Reset Camera** (icon xoay vòng camera) và kéo vào vị trí thuận tay nhất > Bấm **Xong**.
-* **Các dòng máy khác (Xiaomi, Pixel, Oppo...):** Vuốt thanh thông báo xuống > Bấm biểu tượng Sửa (Edit Tiles) > Kéo ô **Reset Camera** lên danh sách thao tác nhanh.
-
-### 2. Khi gặp lỗi Camera
-1. **Không khởi động lại máy** (để giữ nguyên hiện trường tiến trình).
-2. Vuốt Quick Panel xuống và **bấm nút "Reset Camera"**.
-3. Máy sẽ rung nhẹ báo hiệu, app âm thầm giải phóng camera trong 1–2 giây và hiện thông báo Toast kết quả.
-4. Mở ứng dụng Quản lý tệp (My Files) > vào thư mục **`Bộ nhớ trong / CameraLogs`** > mở file `history.txt` để xem app nào vừa gây ra sự cố!
+| Component | Implementation | Function |
+| --- | --- | --- |
+| **System Interface** | `TileService` | Headless execution triggered directly from the Quick Settings / Quick Panel. Zero persistent background memory overhead. |
+| **Session Diagnostics** | `dumpsys media.camera` | Identifies active clients, listener PIDs, and the latest 20 service connect/disconnect/reject events. |
+| **Process Termination** | Shizuku IPC (`am force-stop`) | Terminates identified rogue background packages holding the camera lock. |
+| **Hardware Eviction Pulse** | `Camera2 API` | Acquires a momentary high-priority camera session and closes cleanly to recycle the underlying HAL stream. |
+| **Stream Cycle** | `cmd media.camera set-camera-mute` | Toggles camera stream muting to flush pending hardware requests. |
+| **Local Audit Trail** | Direct storage logging | Persists diagnostic dumps and summary lines to `/sdcard/CameraLogs/` for post-incident debugging. |
 
 ---
 
-## 💻 Biên dịch từ mã nguồn (Build from source)
+## Compatibility
 
-Yêu cầu máy tính có cài sẵn **JDK 17** và **Android SDK** (hoặc Android Studio):
+| System | Supported Versions | Notes |
+| --- | --- | --- |
+| **Android Core** | Android 8.0 (Oreo) – Android 15 / 16 / 17 | Standard AOSP `TileService` and `CameraManager` implementation. |
+| **Samsung One UI** | One UI 1.0 – One UI 9.0+ | Fully compatible with both Exynos and Qualcomm HAL providers. |
+| **Other OEMs** | Google Pixel, Xiaomi (HyperOS/MIUI), OnePlus/Oppo (ColorOS), Vivo | Universal compatibility using standard AOSP subsystems. |
+| **Privilege Backend** | Shizuku v13+ | Required for `dumpsys` client analysis and `am force-stop` operations. Hardware pulse operates independently without Shizuku. |
 
+---
+
+## Installation
+
+1. Download `CameraReset-v1.0.0.apk` from [Releases](https://github.com/WhyICantCreateMyName/CameraServer-reset-for-android/releases/latest).
+2. Install the APK on your device:
+   ```bash
+   adb install -r CameraReset-v1.0.0.apk
+   ```
+3. *(Recommended for rootless diagnostics)* Install [Shizuku](https://shizuku.rikka.app/) and enable **CameraReset** under **Authorized applications**.
+
+> **Note:** CameraReset is built as a **100% UI-less / headless** utility. It intentionally does not register an `android.intent.category.LAUNCHER` activity and will not produce an icon in your app drawer. Management is handled via Quick Settings and the system App Management settings.
+
+---
+
+## Usage
+
+### 1. Adding the Quick Settings Tile
+1. Expand the Quick Panel / Notification Shade by swiping down twice.
+2. Tap the **Edit (Pencil)** icon to modify available tiles.
+3. Locate **Reset Camera** and drag it to your active panel.
+
+### 2. Handling a Camera Lockup
+When an application reports a camera connection failure:
+1. **Do not reboot the phone.** Rebooting flushes the current process state and destroys diagnostic evidence.
+2. Swipe down the Quick Panel and tap **Reset Camera**.
+3. The device will provide haptic confirmation while the utility:
+   - Dumps active camera client states.
+   - Force-terminates hung packages (if authorized via Shizuku).
+   - Pulses the hardware driver pipeline.
+   - Writes diagnostic logs to internal storage.
+4. Reopen your target camera application.
+
+---
+
+## Diagnostic Logs
+
+Logs are written directly to internal storage at:
+```text
+/sdcard/CameraLogs/
+├── history.txt                         # Append-only summary log
+└── camera_reset_YYYYMMDD_HHmmss.log   # Detailed raw dumpsys and service events
+```
+
+### Log Structure (`camera_reset_*.log`):
+* **Section 1: Active Camera Clients:** Lists the package name and PID holding the device lock.
+* **Section 2: Service Events Log:** Recent chronological connection, disconnection, and rejection status codes.
+* **Section 3: CameraService Worker Trace:** Worker thread lifecycle states.
+* **Section 4: Raw Hardware State:** Detailed dumpsys capture of sensor IDs and stream configurations.
+
+---
+
+## Building from Source
+
+### Prerequisites
+* JDK 17
+* Android SDK (Platform 35 / 36, Build-Tools 34.0.0+)
+
+### Build Commands
 ```bash
-# Clone repository
+# Clone the repository
 git clone https://github.com/WhyICantCreateMyName/CameraServer-reset-for-android.git
 cd CameraServer-reset-for-android
-
-# Cấp quyền thực thi cho gradle wrapper (trên Linux/macOS)
-chmod +x gradlew
 
 # Build Debug APK
 ./gradlew assembleDebug
 
-# File APK tạo ra tại:
+# Output artifact location:
 # app/build/outputs/apk/debug/app-debug.apk
 ```
 
 ---
 
-## 📄 Bản quyền & Đóng góp
+## Disclaimer
 
-* Dự án được phân phối dưới giấy phép mã nguồn mở **MIT License**.
-* Mọi đóng góp, báo lỗi (Issues) hoặc Pull Request đều được hoan nghênh!
+This utility performs low-level camera hardware session cycling and process terminations. While it relies entirely on documented AOSP APIs and standard system commands, users are advised that force-stopping background applications may cause unsaved data in those specific applications to be discarded.
 
+---
+
+## License
+
+Distributed under the [MIT License](LICENSE).
