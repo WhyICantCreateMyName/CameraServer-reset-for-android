@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">Camera Reset</string>
+    <string name="tile_label">Reset Camera</string>
+    <string name="btn_reset_now">RESET CAMERA NGAY</string>
+    <string name="btn_open_logs">MỞ THƯ MỤC LOGS</string>
+    <string name="status_shizuku">Trạng thái Shizuku:</string>
+    <string name="status_storage">Quyền bộ nhớ trong:</string>
+    <string name="instruction_title">Cách thêm nút vào Bảng điều khiển nhanh (Quick Panel):</string>
+    <string name="instruction_step1">1. Vuốt 2 lần từ đỉnh màn hình xuống để mở toàn bộ Quick Panel.</string>
+    <string name="instruction_step2">2. Nhấn biểu tượng Bút chì (Sửa) > Chọn nút \"Sửa\" bảng điều khiển.</string>
+    <string name="instruction_step3">3. Tìm nút \"Reset Camera\" và kéo thả vào vị trí mong muốn.</string>
+</resources>
+
