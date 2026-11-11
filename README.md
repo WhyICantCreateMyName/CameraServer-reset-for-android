@@ -124,9 +124,3 @@ cd CameraServer-reset-for-android
 ## Disclaimer
 
 This utility performs low-level camera hardware session cycling and process terminations. While it relies entirely on documented AOSP APIs and standard system commands, users are advised that force-stopping background applications may cause unsaved data in those specific applications to be discarded.
-
----
-
-## License
-
-Distributed under the [MIT License](LICENSE).
